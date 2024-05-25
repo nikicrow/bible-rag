@@ -11,6 +11,7 @@ from langchain.prompts import MessagesPlaceholder
 import streamlit as st
 from langchain.memory import ChatMessageHistory
 
+CHROMA_PATH = "bible_chromadb" 
 
 # page config
 st.set_page_config(page_title="Open AI Agent",
@@ -70,6 +71,41 @@ executor = AgentExecutor(agent=chain,
                             return_intermediate_steps=True,
                             handle_parsing_errors=True,
                             memory=memory)
+
+# ----- Retrieval and Generation Process -----
+
+
+
+# this is an example of a user question (query)
+query = 'What is that verse that talks about the heel crushing the head of a snake?'
+
+# retrieve context - top 5 most relevant (closests) chunks to the query vector 
+docs_chroma = db_chroma.similarity_search_with_score(query, k=5)
+
+# generate an answer based on given user query and retrieved context information
+context_text = "\n\n".join([doc.page_content for doc, _score in docs_chroma])
+
+# you can use a prompt template
+PROMPT_TEMPLATE = """
+Answer the question based only on the following context:
+{context}
+Answer the question based on the above context: {question}.
+Provide a detailed answer.
+Don't give information not mentioned in the CONTEXT INFORMATION.
+Do not say "according to the context" or "mentioned in the context" or similar.
+"""
+
+# load retrieved context and user query in the prompt template
+prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
+prompt = prompt_template.format(context=context_text, question=query)
+
+# call LLM model to generate the answer based on the given context and query
+model = ChatOpenAI(model_name = "gpt-3.5-turbo-0125",
+                    openai_api_key = st.secrets['openai_api_key'],
+                    temperature = 0.2, 
+                    streaming=True)
+response_text = model.predict(prompt)
+
 
 # function to display chat
 def display_chat():
