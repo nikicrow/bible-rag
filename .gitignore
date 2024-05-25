@@ -1,0 +1,4 @@
+.streamlit/
+bibleenv/
+test.ipynb
+bible_chromadb/
