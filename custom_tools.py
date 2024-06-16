@@ -14,6 +14,7 @@ def search_duckduckgo(query: str) -> str:
     return results
 
 # Tool to query the pinecone bible index
+@tool
 def search_bible(query:str) -> str:
     """ Search the bible for relevant passages for the user query. Returns passages for you to read and answer the user question. """
     # Get Open AI key from secrets.toml
@@ -49,5 +50,6 @@ def search_bible(query:str) -> str:
     for i in range(k):
         text = query_response['matches'][i]['metadata']['text']
         texts.append(text)
-    
+    print("query: ",query)
+    print("passages returned: ",texts)
     return texts
