@@ -1,7 +1,6 @@
 from langchain.memory import ConversationBufferMemory 
 from langchain.agents import AgentExecutor
 from langchain.chat_models import ChatOpenAI
-from custom_tools import get_pokemon_types, search_duckduckgo
 from langchain.prompts import ChatPromptTemplate
 from langchain.tools.render import format_tool_to_openai_function
 from langchain.agents.format_scratchpad import format_to_openai_functions
@@ -10,22 +9,25 @@ from langchain.agents.output_parsers import OpenAIFunctionsAgentOutputParser
 from langchain.prompts import MessagesPlaceholder
 import streamlit as st
 from langchain.memory import ChatMessageHistory
-
-CHROMA_PATH = "bible_chromadb" 
+from custom_tools import search_bible
 
 # page config
-st.set_page_config(page_title="Open AI Agent",
+st.set_page_config(page_title="BibleBot",
                    page_icon=':sparkles:',
                    layout='centered',
                    initial_sidebar_state='collapsed')
-st.title(':robot_face: Chatbot')
-# set up open ai key
+
+st.title(':latin_cross: BibleBot')
+
+# Set up open ai key
 openai_key = st.secrets["OPEN_AI_KEY"]
-# initialise chat history
+
+# Initialise chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# add memory to the chat for conversation history
+def initalise_agent():
+# Add memory to the chat for conversation history
 formatted_chat_history = ChatMessageHistory()
 for message in st.session_state.chat_history:
     if message['role']=='user':
@@ -36,24 +38,27 @@ memory = ConversationBufferMemory(chat_memory=formatted_chat_history,
                                     return_messages=True,
                                     memory_key="chat_history",
                                     output_key="output")
-# load custom tools from the custom_tools.py file
-tools = [get_pokemon_types,search_duckduckgo]
-# format tools to be able to be used by open ai
+
+
+# Create and format tools to be able to be used by open ai
+tools = [search_bible]
 functions = [format_tool_to_openai_function(f) for f in tools]
-# load model from open AI
+
+# load Agent model from open AI
 llm = ChatOpenAI(model_name = "gpt-3.5-turbo-0125",
                     openai_api_key = openai_key,
                     temperature = 0.2, 
                     streaming=True)
-# bind the tools to the model
+
+# Bind the tools to the model
 model = llm.bind(functions=functions)
-# create prompt using the chat prompt template
+
+# Create prompt using the chat prompt template
 prompt = ChatPromptTemplate.from_messages([
-    ("system", """You are a friendly chatbot. 
-    Use the following tools to answer the users question:
-    get_pokemon_types: A Python shell. Use this tool to get pokemon types.
-    search_duckduckgo: Search any query on the internet about anything.
-    If you use the internet search tool, search_duckduckgo, make sure you provide the link from where you got the answer from.
+    ("system", """You are a friendly chatbot who has access to a tool that can search the bible and return the top 3 relevant texts. 
+    Use the tool search_bible by giving it a query in the form of a string in order to answer the user query.
+    Answer the question based on the texts that you get by using the tool. 
+    If you are going to answer the question, mention the bible verse that you are talking about.
     """),
     MessagesPlaceholder(variable_name="chat_history"),
     ("user", "{input}"),
@@ -64,6 +69,7 @@ prompt = ChatPromptTemplate.from_messages([
 chain = RunnablePassthrough.assign(
         agent_scratchpad = lambda x: format_to_openai_functions(x["intermediate_steps"])
     ) | prompt | model | OpenAIFunctionsAgentOutputParser()
+
 # create executor
 executor = AgentExecutor(agent=chain, 
                             tools=tools, 

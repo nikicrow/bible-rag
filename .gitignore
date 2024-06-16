@@ -2,3 +2,5 @@
 bibleenv/
 test.ipynb
 bible_chromadb/
+.env
+test/
